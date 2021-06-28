@@ -22,14 +22,14 @@
         <dependency>
             <groupId>org.wso2.carbon.apimgt</groupId>
             <artifactId>org.wso2.carbon.apimgt.gateway</artifactId>
-            <version>6.7.206</version>
+            <version>9.0.174</version>
         </dependency>
 
         <!-- synapse dependency -->
         <dependency>
             <groupId>org.apache.synapse</groupId>
             <artifactId>synapse-core</artifactId>
-            <version>2.1.7-wso2v183</version>
+            <version>2.1.7-wso2v227</version>
             <scope>provided</scope>
         </dependency>
     </dependencies>

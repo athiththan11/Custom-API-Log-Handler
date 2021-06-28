@@ -2,7 +2,7 @@
 
 A Custom Synapse Handler to Log API Request / Response in WSO2 API Manager platform.
 
-> The branch contains the source code of the handler implemented for APIM v3.2.0. Please make a clone of this repo and update the dependencies and build the handler to support in other versions of the WSO2 API Manager.
+> The branch contains the source code of the handler implemented for APIM v4.0.0. Please make a clone of this repo and update the dependencies and build the handler to support in other versions of the WSO2 API Manager.
 
 ## Build
 
@@ -20,11 +20,9 @@ mvn clean package
 - Add the following configuration at the beginning of the `<gateway>/repository/conf/deployment.toml` to engage the API Log Handler
 
   ```toml
-  enabled_global_handlers= ["api_log_handler"]
-
-  [synapse_handlers]
-  api_log_handler.name= "MockHandler"
-  api_log_handler.class= "com.sample.handlers.APILogHandler"
+  [synapse_handlers.api_log_handler]
+  enabled = true
+  class= "com.sample.handlers.APILogHandler"
   ```
 
 - Add the following in `<gateway>/repository/conf/log4j2.properties`
