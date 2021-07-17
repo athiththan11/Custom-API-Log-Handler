@@ -2,17 +2,20 @@ package com.sample.handlers;
 
 import java.util.Map;
 
+import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.commons.lang.StringUtils;
 import org.apache.synapse.AbstractSynapseHandler;
 import org.apache.synapse.MessageContext;
 import org.apache.synapse.core.axis2.Axis2MessageContext;
 import org.wso2.carbon.apimgt.gateway.APIMgtGatewayConstants;
+import org.wso2.carbon.base.MultitenantConstants;
+import org.wso2.carbon.utils.multitenancy.MultitenantUtils;
 
 public class APILogHandler extends AbstractSynapseHandler {
 
     private String apiName = null;
+    private String apiVersion = null;
     private String apiCTX = null;
     private String apiMethod = null;
     private String apiTo = null;
@@ -22,8 +25,10 @@ public class APILogHandler extends AbstractSynapseHandler {
     private String applicationName = null;
     private String apiConsumerKey = null;
     private String sourceIP = null;
+    private String apiCreator = null;
+    private String username = null;
+    private String tenantDomain = null;
 
-    private static final String UUID_HEADER = "LOG_UUID_HEADER";
     private static final String HEADER_X_FORWARDED_FOR = "X-FORWARDED-FOR";
 
     private static final Log log = LogFactory.getLog(APILogHandler.class);
@@ -44,13 +49,23 @@ public class APILogHandler extends AbstractSynapseHandler {
 
         Map headers = (Map) ((Axis2MessageContext) messageContext).getAxis2MessageContext()
                 .getProperty(org.apache.axis2.context.MessageContext.TRANSPORT_HEADERS);
+        sourceIP = getSourceIP(axis2MsgContext, headers);
 
         apiName = (String) messageContext.getProperty("SYNAPSE_REST_API");
-        apiCTX = (String) messageContext.getProperty("REST_API_CONTEXT");
-        apiMethod = (String) axis2MsgContext.getProperty("HTTP_METHOD");
+        apiVersion = (String) messageContext.getProperty(APIMgtGatewayConstants.API_VERSION);
+        apiCTX = (String) messageContext.getProperty(APIMgtGatewayConstants.CONTEXT);
+        apiMethod = (String) axis2MsgContext.getProperty(APIMgtGatewayConstants.HTTP_METHOD);
         apiElectedRsrc = (String) messageContext.getProperty("API_ELECTED_RESOURCE");
         apiRestReqFullPath = (String) messageContext.getProperty("REST_FULL_REQUEST_PATH");
-        sourceIP = getSourceIP(axis2MsgContext, headers);
+        username = (String) messageContext.getProperty(APIMgtGatewayConstants.USER_ID);
+        applicationName = (String) messageContext.getProperty(APIMgtGatewayConstants.APPLICATION_NAME);
+        apiConsumerKey = (String) messageContext.getProperty(APIMgtGatewayConstants.CONSUMER_KEY);
+        apiCreator = (String) messageContext.getProperty(APIMgtGatewayConstants.API_PUBLISHER);
+
+        tenantDomain = MultitenantUtils.getTenantDomainFromRequestURL(apiCTX);
+        if (tenantDomain == null) {
+            tenantDomain = MultitenantConstants.SUPER_TENANT_DOMAIN_NAME;
+        }
 
         return true;
     }
@@ -63,13 +78,12 @@ public class APILogHandler extends AbstractSynapseHandler {
         long responseTime = getResponseTime(messageContext);
         long beTotalLatency = getBackendLatency(messageContext);
         apiResponseSC = String.valueOf(axis2MsgContext.getProperty("HTTP_SC"));
-        applicationName = (String) messageContext.getProperty(APIMgtGatewayConstants.APPLICATION_NAME);
-        apiConsumerKey = (String) messageContext.getProperty(APIMgtGatewayConstants.CONSUMER_KEY);
         String uuIdHeader = (String) messageContext.getProperty("CORRELATION_ID_HEADER");
 
-        log.info(uuIdHeader + "| Source IP: " + sourceIP + " | API Name: " + apiName + " |" + apiMethod + "| Path: " + apiCTX + apiElectedRsrc
-                + " | Response Code: " + apiResponseSC + " | Response Time: " + responseTime + " | Backend Latency: "
-                + beTotalLatency);
+        log.info(uuIdHeader + "|" + tenantDomain + "| Username: " + username + " | Source IP: " + sourceIP
+                + " | API Name: " + apiName + " | API Provider: " + apiCreator + " |" + apiMethod + "| Path: " + apiCTX
+                + apiElectedRsrc + " | Response Code: " + apiResponseSC + " | Response Time: " + responseTime
+                + " | Backend Latency: " + beTotalLatency);
 
         return true;
     }
