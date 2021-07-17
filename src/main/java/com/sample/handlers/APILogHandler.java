@@ -1,6 +1,8 @@
 package com.sample.handlers;
 
 import java.util.Map;
+import java.util.SortedMap;
+import java.util.TreeMap;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
@@ -11,6 +13,12 @@ import org.apache.synapse.core.axis2.Axis2MessageContext;
 import org.wso2.carbon.apimgt.gateway.APIMgtGatewayConstants;
 import org.wso2.carbon.base.MultitenantConstants;
 import org.wso2.carbon.utils.multitenancy.MultitenantUtils;
+import org.wso2.carbon.context.PrivilegedCarbonContext;
+import org.wso2.carbon.user.api.ClaimManager;
+import org.wso2.carbon.user.api.ClaimMapping;
+import org.wso2.carbon.user.api.UserStoreException;
+import org.wso2.carbon.user.api.UserStoreManager;
+import org.wso2.carbon.user.core.service.RealmService;
 
 public class APILogHandler extends AbstractSynapseHandler {
 
@@ -28,7 +36,10 @@ public class APILogHandler extends AbstractSynapseHandler {
     private String apiCreator = null;
     private String username = null;
     private String tenantDomain = null;
+    private String organization = null;
+    private SortedMap<String, String> claims;
 
+    private static final String DIALECT_URI = "http://wso2.org/claims";
     private static final String HEADER_X_FORWARDED_FOR = "X-FORWARDED-FOR";
 
     private static final Log log = LogFactory.getLog(APILogHandler.class);
@@ -67,6 +78,23 @@ public class APILogHandler extends AbstractSynapseHandler {
             tenantDomain = MultitenantConstants.SUPER_TENANT_DOMAIN_NAME;
         }
 
+        /**
+         * segment to retrieve the user claims.
+         * 
+         * @note: Enabling the following portion adds an overhead to the API execution
+         *        flow. Enhance the implementation with caches to reduce the latencies
+         */
+
+        try {
+            claims = getUserClaim(username.split("@")[0]);
+            organization = "-";
+            if (claims != null && !claims.isEmpty() && claims.containsKey(DIALECT_URI + "organization")) {
+                organization = claims.get(DIALECT_URI + "organization");
+            }
+        } catch (UserStoreException e) {
+            log.error("Error while retrieving user claims.", e);
+        }
+
         return true;
     }
 
@@ -80,10 +108,10 @@ public class APILogHandler extends AbstractSynapseHandler {
         apiResponseSC = String.valueOf(axis2MsgContext.getProperty("HTTP_SC"));
         String uuIdHeader = (String) messageContext.getProperty("CORRELATION_ID_HEADER");
 
-        log.info(uuIdHeader + "|" + tenantDomain + "| Username: " + username + " | Source IP: " + sourceIP
-                + " | API Name: " + apiName + " | API Provider: " + apiCreator + " |" + apiMethod + "| Path: " + apiCTX
-                + apiElectedRsrc + " | Response Code: " + apiResponseSC + " | Response Time: " + responseTime
-                + " | Backend Latency: " + beTotalLatency);
+        log.info(uuIdHeader + "|" + tenantDomain + "| Username: " + username + " | Organization: " + organization
+                + " | Source IP: " + sourceIP + " | API Name: " + apiName + " | API Provider: " + apiCreator + " |"
+                + apiMethod + "| Path: " + apiCTX + apiElectedRsrc + " | Response Code: " + apiResponseSC
+                + " | Response Time: " + responseTime + " | Backend Latency: " + beTotalLatency);
 
         return true;
     }
@@ -152,5 +180,26 @@ public class APILogHandler extends AbstractSynapseHandler {
         }
 
         return clientIP;
+    }
+
+    private SortedMap<String, String> getUserClaim(String username) throws UserStoreException {
+
+        RealmService realm = (RealmService) PrivilegedCarbonContext.getThreadLocalCarbonContext()
+                .getOSGiService(RealmService.class, null);
+        int tenantId = PrivilegedCarbonContext.getThreadLocalCarbonContext().getTenantId();
+
+        SortedMap<String, String> claimValues;
+        ClaimManager claimManager = realm.getTenantUserRealm(tenantId).getClaimManager();
+        ClaimMapping[] claims = claimManager.getAllClaimMappings(DIALECT_URI);
+
+        String[] claimURIs = new String[claims.length];
+        for (int i = 0; i < claims.length; i++) {
+            claimURIs[i] = claims[i].getClaim().getClaimUri();
+        }
+
+        UserStoreManager userStoreManager = realm.getTenantUserRealm(tenantId).getUserStoreManager();
+        claimValues = new TreeMap(userStoreManager.getUserClaimValues(username, claimURIs, null));
+
+        return claimValues;
     }
 }
