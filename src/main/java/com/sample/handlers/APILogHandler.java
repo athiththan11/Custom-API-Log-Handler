@@ -65,7 +65,7 @@ public class APILogHandler extends AbstractSynapseHandler {
         apiName = (String) messageContext.getProperty("SYNAPSE_REST_API");
         apiVersion = (String) messageContext.getProperty(APIMgtGatewayConstants.API_VERSION);
         apiCTX = (String) messageContext.getProperty(APIMgtGatewayConstants.CONTEXT);
-        apiMethod = (String) axis2MsgContext.getProperty(APIMgtGatewayConstants.HTTP_METHOD);
+        apiMethod = (String) axis2MsgContext.getProperty("HTTP_METHOD");
         apiElectedRsrc = (String) messageContext.getProperty("API_ELECTED_RESOURCE");
         apiRestReqFullPath = (String) messageContext.getProperty("REST_FULL_REQUEST_PATH");
         username = (String) messageContext.getProperty(APIMgtGatewayConstants.USER_ID);
